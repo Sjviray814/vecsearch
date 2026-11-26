@@ -1,0 +1,27 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]  # x86-64 (AVX2 path) and ARM64 (NEON path)
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pybind11 numpy
+      - run: cmake -S . -B build -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
+      - run: cmake --build build -j
+      - run: ./build/test_hnsw
+      - run: ./build/bench 20000 64 200
+      - name: Python smoke test
+        run: |
+          cd build && python -c "
+          import numpy as np, _vecsearch as vs
+          x = np.random.rand(2000, 32).astype('float32')
+          i = vs.HNSWIndex(32, 'l2'); i.add(x, np.arange(2000, dtype='uint64'))
+          L, D = i.search(x[:100], k=1)
+          assert (L[:, 0] == np.arange(100)).mean() > 0.99
+          print('ok')"

@@ -1,0 +1,6 @@
+build/
+.venv/
+data/
+*.idx
+__pycache__/
+.DS_Store
